@@ -127,6 +127,9 @@
                         player.y = platform.y - player.height; // Corrected to place player above the platform
                         player.onGround = true;
                         player.velocityY = 0;
+                    } else if (player.velocityY < 0 && player.y >= platform.y + platform.height) {
+                        player.y = platform.y + platform.height;
+                        player.velocityY = 0;
                     }
                 }
             });
@@ -135,7 +138,13 @@
                 showLevelCompleteScreen();
             }
 
-            if (player.x < 0 || player.x + player.width > canvas.width) {
+            if (player.x < 0) {
+                player.x = 0;
+            } else if (player.x + player.width > canvas.width) {
+                player.x = canvas.width - player.width;
+            }
+
+            if (player.y > canvas.height) {
                 showGameOverScreen();
             }
         }
