@@ -76,6 +76,12 @@
         const moveSpeed = 4;
 
         let gameActive = true;
+        let platformDespawned = false;
+        let platformBlinking = false;
+        let blinkCount = 0;
+        let holeAppeared = false;
+        let holeAnimationTimer = 0;
+        const holeAnimationDuration = 30; // 0.3 seconds at 60fps
 
         function drawPlayer() {
             ctx.fillStyle = 'white';
@@ -87,7 +93,11 @@
 
         function drawPlatforms() {
             platforms.forEach(platform => {
-                ctx.fillStyle = '#555555';
+                if (platformDespawned && platform.x === 150) {
+                    return;
+                }
+                const color = platformBlinking ? '#ff3333' : '#555555';
+                ctx.fillStyle = color;
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 1;
                 ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
@@ -101,6 +111,31 @@
             ctx.lineWidth = 1;
             ctx.fillRect(door.x, door.y, door.width, door.height);
             ctx.strokeRect(door.x, door.y, door.width, door.height);
+        }
+
+        function drawSpikes() {
+            const spikePositions = [200, 400, 600];
+            spikePositions.forEach(x => {
+                ctx.fillStyle = '#ff3333';
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x, 418);
+                ctx.lineTo(x + 20, 418);
+                ctx.lineTo(x + 10, 438);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            });
+        }
+
+        function drawHole() {
+            if (holeAppeared) {
+                ctx.fillStyle = '#ff3333';
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1;
+                ctx.fillRect(350, 418, 60, 2);
+            }
         }
 
         function checkCollision(rect1, rect2) {
@@ -126,6 +161,9 @@
             }
 
             platforms.forEach(platform => {
+                if (platformDespawned && platform.x === 150) {
+                    return;
+                }
                 if (checkCollision(player, platform)) {
                     if (player.velocityY > 0 && player.y + player.height <= platform.y) {
                         player.y = platform.y - player.height; // Corrected to place player above the platform
@@ -135,6 +173,13 @@
                         player.y = platform.y + platform.height;
                         player.velocityY = 1; // Corrected to make player bounce downwards
                     }
+                }
+            });
+
+            const spikePositions = [200, 400, 600];
+            spikePositions.forEach(x => {
+                if (checkCollision(player, { x: x, y: 418, width: 20, height: 20 })) {
+                    showGameOverScreen();
                 }
             });
 
@@ -160,6 +205,8 @@
             drawPlayer();
             drawPlatforms();
             drawDoor();
+            drawSpikes();
+            drawHole();
 
             // Draw invisible floor line
             ctx.strokeStyle = 'white';
@@ -173,6 +220,33 @@
         function gameLoop() {
             updatePlayer();
             draw();
+
+            if (!platformDespawned && checkCollision(player, platforms[0])) {
+                platformDespawned = true;
+                setTimeout(() => {
+                    platformBlinking = true;
+                    setInterval(() => {
+                        blinkCount++;
+                        if (blinkCount >= 6) { // 3 blinks
+                            platformBlinking = false;
+                        }
+                    }, 100);
+                    setTimeout(() => {
+                        platforms.shift();
+                    }, 1500);
+                }, 0);
+            }
+
+            if (!holeAppeared && Date.now() - startTime >= 3000) { // 3 seconds after start
+                holeAppeared = true;
+                setInterval(() => {
+                    holeAnimationTimer++;
+                    if (holeAnimationTimer >= holeAnimationDuration) {
+                        holeAnimationTimer = 0;
+                    }
+                }, 16.67); // Roughly 60fps
+            }
+
             requestAnimationFrame(gameLoop);
         }
 
@@ -199,6 +273,11 @@
             player.velocityY = 0;
             player.onGround = true;
             gameActive = true;
+            platformDespawned = false;
+            platformBlinking = false;
+            blinkCount = 0;
+            holeAppeared = false;
+            holeAnimationTimer = 0;
             document.getElementById('gameOverScreen').style.display = 'none';
             document.getElementById('levelCompleteScreen').style.display = 'none';
             document.addEventListener('keydown', handleKeyDown);
@@ -228,6 +307,7 @@
             }
         }
 
+        const startTime = Date.now();
         document.addEventListener('keydown', handleKeyDown);
         document.addEventListener('keyup', handleKeyUp);
 
