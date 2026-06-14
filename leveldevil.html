@@ -75,6 +75,8 @@
         const jumpStrength = -12;
         const moveSpeed = 4;
 
+        let gameActive = true;
+
         function drawPlayer() {
             ctx.fillStyle = 'white';
             ctx.fillRect(player.x, player.y, player.width, player.height);
@@ -111,6 +113,8 @@
         }
 
         function updatePlayer() {
+            if (!gameActive) return;
+
             player.velocityY += gravity;
             player.x += player.velocityX;
             player.y += player.velocityY;
@@ -129,7 +133,7 @@
                         player.velocityY = 0;
                     } else if (player.velocityY < 0 && player.y >= platform.y + platform.height) {
                         player.y = platform.y + platform.height;
-                        player.velocityY = 0;
+                        player.velocityY = 1; // Corrected to make player bounce downwards
                     }
                 }
             });
@@ -175,11 +179,17 @@
         function showGameOverScreen() {
             document.getElementById('gameOverScreen').style.display = 'flex';
             document.getElementById('levelCompleteScreen').style.display = 'none';
+            gameActive = false;
         }
 
         function showLevelCompleteScreen() {
             document.getElementById('gameOverScreen').style.display = 'none';
             document.getElementById('levelCompleteScreen').style.display = 'flex';
+            player.velocityX = 0;
+            player.velocityY = 0;
+            gameActive = false;
+            document.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('keyup', handleKeyUp);
         }
 
         function restartGame() {
@@ -188,11 +198,16 @@
             player.velocityX = 0;
             player.velocityY = 0;
             player.onGround = true;
+            gameActive = true;
             document.getElementById('gameOverScreen').style.display = 'none';
             document.getElementById('levelCompleteScreen').style.display = 'none';
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
         }
 
         function handleKeyDown(event) {
+            if (!gameActive) return;
+
             if (event.key === 'ArrowLeft' || event.key === 'a') {
                 player.velocityX = -moveSpeed;
             } else if (event.key === 'ArrowRight' || event.key === 'd') {
@@ -204,6 +219,8 @@
         }
 
         function handleKeyUp(event) {
+            if (!gameActive) return;
+
             if (event.key === 'ArrowLeft' || event.key === 'a') {
                 player.velocityX = 0;
             } else if (event.key === 'ArrowRight' || event.key === 'd') {
