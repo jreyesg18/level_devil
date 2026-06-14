@@ -71,7 +71,7 @@
             height: 50
         };
 
-        const gravity = 0.5;
+        let gravity = 0.5;
         const jumpStrength = -12;
         const moveSpeed = 4;
 
@@ -82,6 +82,9 @@
         let holeAppeared = false;
         let holeAnimationTimer = 0;
         const holeAnimationDuration = 30; // 0.3 seconds at 60fps
+        let gravityInverted = false;
+        let controlsInverted = false;
+        let surpriseSpikeActive = false;
 
         function drawPlayer() {
             ctx.fillStyle = 'white';
@@ -138,6 +141,21 @@
             }
         }
 
+        function drawSurpriseSpike() {
+            if (surpriseSpikeActive) {
+                ctx.fillStyle = '#ff3333';
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(door.x - 20, door.y);
+                ctx.lineTo(door.x, door.y);
+                ctx.lineTo(door.x - 10, door.y + 20);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
         function checkCollision(rect1, rect2) {
             return (
                 rect1.x < rect2.x + rect2.width &&
@@ -154,10 +172,18 @@
             player.x += player.velocityX;
             player.y += player.velocityY;
 
-            if (player.y + player.height >= 446) { // Updated to check against the invisible floor line
-                player.y = 410; // Updated to place player on the invisible floor line
-                player.onGround = true;
-                player.velocityY = 0;
+            if (gravityInverted) {
+                if (player.y <= 0) {
+                    player.y = 0;
+                    player.onGround = true;
+                    player.velocityY = 0;
+                }
+            } else {
+                if (player.y + player.height >= 446) { // Updated to check against the invisible floor line
+                    player.y = 410; // Updated to place player on the invisible floor line
+                    player.onGround = true;
+                    player.velocityY = 0;
+                }
             }
 
             platforms.forEach(platform => {
@@ -183,6 +209,10 @@
                 }
             });
 
+            if (surpriseSpikeActive && checkCollision(player, { x: door.x - 20, y: door.y, width: 20, height: 20 })) {
+                showGameOverScreen();
+            }
+
             if (checkCollision(player, door)) {
                 showLevelCompleteScreen();
             }
@@ -193,7 +223,7 @@
                 player.x = canvas.width - player.width;
             }
 
-            if (player.y > canvas.height) {
+            if (!gravityInverted && player.y > canvas.height) {
                 showGameOverScreen();
             }
         }
@@ -207,6 +237,7 @@
             drawDoor();
             drawSpikes();
             drawHole();
+            drawSurpriseSpike();
 
             // Draw invisible floor line
             ctx.strokeStyle = 'white';
@@ -247,6 +278,35 @@
                 }, 16.67); // Roughly 60fps
             }
 
+            if (!gravityInverted && Date.now() - startTime >= 5000) { // 5 seconds after start
+                gravityInverted = true;
+                setTimeout(() => {
+                    ctx.fillStyle = 'white';
+                    ctx.font = '48px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('¿?', canvas.width / 2, canvas.height / 2);
+                    setTimeout(() => {
+                        gravityInverted = false;
+                        gravity = -0.5;
+                    }, 1000); // 1 second
+                }, 0);
+            }
+
+            if (!controlsInverted && checkCollision(player, platforms[1])) {
+                controlsInverted = true;
+                ctx.fillStyle = 'red';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('CONTROLES INVERTIDOS', canvas.width / 2, canvas.height / 2);
+                setTimeout(() => {
+                    controlsInverted = false;
+                }, 5000); // 5 seconds
+            }
+
+            if (player.x + player.width >= door.x - 100 && !surpriseSpikeActive) {
+                surpriseSpikeActive = true;
+            }
+
             requestAnimationFrame(gameLoop);
         }
 
@@ -278,6 +338,9 @@
             blinkCount = 0;
             holeAppeared = false;
             holeAnimationTimer = 0;
+            gravityInverted = false;
+            controlsInverted = false;
+            surpriseSpikeActive = false;
             document.getElementById('gameOverScreen').style.display = 'none';
             document.getElementById('levelCompleteScreen').style.display = 'none';
             document.addEventListener('keydown', handleKeyDown);
@@ -287,11 +350,20 @@
         function handleKeyDown(event) {
             if (!gameActive) return;
 
-            if (event.key === 'ArrowLeft' || event.key === 'a') {
+            let key = event.key;
+            if (controlsInverted) {
+                if (key === 'ArrowLeft' || key === 'a') {
+                    key = 'ArrowRight';
+                } else if (key === 'ArrowRight' || key === 'd') {
+                    key = 'ArrowLeft';
+                }
+            }
+
+            if (key === 'ArrowLeft' || key === 'a') {
                 player.velocityX = -moveSpeed;
-            } else if (event.key === 'ArrowRight' || event.key === 'd') {
+            } else if (key === 'ArrowRight' || key === 'd') {
                 player.velocityX = moveSpeed;
-            } else if ((event.key === 'ArrowUp' || event.key === 'w' || event.key === ' ') && player.onGround) {
+            } else if ((key === 'ArrowUp' || key === 'w' || event.key === ' ') && player.onGround) {
                 player.velocityY = jumpStrength;
                 player.onGround = false;
             }
@@ -300,9 +372,18 @@
         function handleKeyUp(event) {
             if (!gameActive) return;
 
-            if (event.key === 'ArrowLeft' || event.key === 'a') {
+            let key = event.key;
+            if (controlsInverted) {
+                if (key === 'ArrowLeft' || key === 'a') {
+                    key = 'ArrowRight';
+                } else if (key === 'ArrowRight' || key === 'd') {
+                    key = 'ArrowLeft';
+                }
+            }
+
+            if (key === 'ArrowLeft' || key === 'a') {
                 player.velocityX = 0;
-            } else if (event.key === 'ArrowRight' || event.key === 'd') {
+            } else if (key === 'ArrowRight' || key === 'd') {
                 player.velocityX = 0;
             }
         }
